@@ -1,44 +1,59 @@
 "use client"
 
-import { createClient } from "@/lib/supabase/server"
-import { redirect } from "next/navigation"
+import { useEffect, useState } from "react"
+import { createClient } from "@/lib/supabase/client"
+import { redirect, useParams } from "next/navigation"
 import { DashboardHeader } from "@/components/dashboard-header"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Printer } from "lucide-react"
 
-export default async function PayrollDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params
-  const supabase = await createClient()
+export default function PayrollDetailPage() {
+  const { id } = useParams()
+  const [payroll, setPayroll] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) {
-    redirect("/auth/login")
-  }
+  useEffect(() => {
+    const fetchPayroll = async () => {
+      const supabase = createClient()
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      if (!user) {
+        redirect("/auth/login")
+      }
 
-  const { data: payroll } = await supabase
-    .from("payroll")
-    .select(
-      `
-      *,
-      employees:employee_id (
-        employee_code,
-        name,
-        designation,
-        department,
-        phone,
-        address
-      )
-    `,
-    )
-    .eq("id", id)
-    .single()
+      const { data } = await supabase
+        .from("payroll")
+        .select(
+          `
+          *,
+          employees:employee_id (
+            employee_code,
+            name,
+            designation,
+            department,
+            phone,
+            address
+          )
+        `,
+        )
+        .eq("id", id)
+        .single()
 
-  if (!payroll) {
-    redirect("/dashboard/payroll")
+      if (!data) {
+        redirect("/dashboard/payroll")
+      }
+      setPayroll(data)
+      setLoading(false)
+    }
+
+    fetchPayroll()
+  }, [id])
+
+  if (loading) {
+    return <div>Loading...</div>
   }
 
   const monthName = new Date(payroll.year, payroll.month - 1).toLocaleString("default", { month: "long" })
